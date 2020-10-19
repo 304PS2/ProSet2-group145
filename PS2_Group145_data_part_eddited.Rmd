@@ -1,0 +1,245 @@
+---
+title: "House dezation"
+author: "Michael Huang, Jiawei Wang, Huaqing Zhang, Qiushu Zhou"
+date: "Oct 19, 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+```{r, include=FALSE}
+install.packages("plyr")
+install.packages("aod")
+install.packages("lmtest")
+library(tidyverse)
+library(plyr)
+library(dplyr)
+library(aod)
+library(lmtest)
+
+gss <- read_csv("gss.csv")
+attach(gss)
+```
+## House dezation
+
+# Michael Huang, Jiawei Wang, Huaqing Zhang, Qiushu Zhou
+# Oct 19, 2020
+
+## Abstract
+
+Here is where you give a brief (one paragraph overview of your entire paper). This should include some background/introduction, some methodology, results and conclusions.
+
+## Introduction
+
+  In this report we The goal of this analysis is to give people at different age, income, and number of number advice on housing decision based on other people's choices when they are in the same situation. Human spends roughly 1/3 of their lifetime in bed and shelter is the most basic need of human being. Making housing choice is very important since in most cases it is the biggest purchase in the lifetime. The result of this analysis will conclude how important each of these predictor affect people's housing choice and by inputting a individual's information it will show how many people are renting or buying housing in similar situations. 
+
+((Here is where you should give insight into the setting and introduce the goal of the analysis. Here you can introduce ideas and basic concepts regarding the study setting and the potential model. Again, this is the introduction, so you should be explaining the importance of the work that is ahead and hopefully build some suspense for the reader. You can also highlight what will be included in the subsequent sections.))
+
+## Data
+
+  The variables that we choose for our research topic is selected from GSS data in year 2017, which is an annual survey tracking the changes within the Canadian society. GSS data is used as the important evidences for Canadian government to improve the well-being of Canadian society. In addition, the data set is collected from questionnaire and it includes comprehensive socio-demographic information like age, sex and income. The questionnaire is good here because it simply shows basic information for objective population, and classifies them in a clear way. In this cleaned data, there are 20396 observations from age 15 to 80.
+
+  In this project, we want to study the relationship between the variable age, total children, income and the outcome they rent or owned house. Also, we want to know how they affect the outcome. In order to fit a proper model and obtain relatively precise results, We made some re-arrangement on these data. 
+  First, the outcome variable own_rent represents two ways that people choose to settle down. Therefore, we consider it as a binary response varibale with two indicators. 
+  Second, the two predictor variables total_children and age are numerical which does not need any transformation. Total_children refers to the number of children that the respondents have, and age refers to the age of the respondents. However, since the variable income_respondant we choose is initially a catagorical variable, thus we need to transform it into numerical variables by ranking it into five predictors based on the six ranges contained in income_respondant variable. 
+  In addition, The variable total_children refers to the number of children that the respondents have, but it cannot be the significant factor to influence the outcome rent or owned house. It might not have the significance on influence the outcome that we study. 
+  
+  
+  下面这个括号里是我不太清楚要不要删掉的。“not expected to answer”在后面weakness里也有说到，所以data里还要再写吗
+  （age and income may suffer that the respondents are not expected to answer the question, and the values may be missing, which leads to the differences of the results.）
+
+As such we define the following binary response variable:
+
+y=0 if the respondent **RENT** the household.
+
+y=1 if the respondent **OWNED** this household or a member of this household owned.
+
+
+Also, We will consider the following **SEVEN** potential predictor variables:
+
+$x_1$ = age = The age of respondents
+
+$x_2$ = total_children = The number of children that the respondent have in total
+
+$x_3$ = The income of the respondent is from $25,000 to $49,999
+
+$x_4$ = The income of the respondent is from $50,000 to $74,999
+
+$x_5$ = The income of the respondent is from $75,000 to $99,999
+
+$x_6$ = The income of the respondent is from $100,000 to $124,999
+
+$x_7$ = The income of the respondent is from $125,000 and more
+
+
+  The first 10 rows of the data are given below.
+
+```{r,echo=FALSE}
+
+gss_data <- select(gss, caseid, own_rent, age, total_children, income_respondent)
+
+#Delete NA and "don't know" on own_rent and total_children
+gss_data <- filter(gss_data, own_rent %in% c("Owned by you or a member of this household, even if it i...", "Rented, even if no cash rent is paid"))
+cleaned_gss <- drop_na(gss_data, total_children) 
+#cleaned_gss
+cleaned_gss$own_rent <- revalue(cleaned_gss$own_rent, c("Rented, even if no cash rent is paid"=0))
+cleaned_gss$own_rent <- revalue(cleaned_gss$own_rent, c("Owned by you or a member of this household, even if it i..."=1))
+cleaned_gss$income_respondent <- revalue(cleaned_gss$income_respondent, c("Less than $25,000"=1))
+cleaned_gss$income_respondent <- revalue(cleaned_gss$income_respondent, c("$25,000 to $49,999"=2))
+cleaned_gss$income_respondent <- revalue(cleaned_gss$income_respondent, c("$50,000 to $74,999"=3))
+cleaned_gss$income_respondent <- revalue(cleaned_gss$income_respondent, c("$75,000 to $99,999"=4))
+cleaned_gss$income_respondent <- revalue(cleaned_gss$income_respondent, c("$100,000 to $ 124,999"=5))
+cleaned_gss$income_respondent <- revalue(cleaned_gss$income_respondent, c("$125,000 and more"=6))
+cleaned_gss$own_rent <- as.numeric(cleaned_gss$own_rent)
+cleaned_gss$income_respondent <- as.numeric(cleaned_gss$income_respondent)
+head(cleaned_gss, 10)
+```
+
+
+## Model
+
+The selected model for this analysis is Logistic Regression Model which is a model that is used when the response variable has two possible outcomes like a yes or no question. For this report, we want to explore the relationship between the variables age, total children, income and the outcome they rent or owned household. We define the binary response variable which is y = 0 if the respondent rent household and y = 1 if the household owned by respondent or a member of this household. And the software used to establish this model is Rstudio.
+
+First we use **logit(p) = log(p/(1-p))**, where p is the probabilities of y = 1 which refers to the household owned by respondent or a member of this household.
+
+Then we build a Logistic Regression Model:
+
+$$logit(p)= \beta_0 + \beta_1x_1 + \beta_2x_2  + \beta_3x_3 + \beta_4x_4 + \beta_5x_5 + \beta_6x_6 + \beta_7x_7$$
+
+We use glm() function to get the logistic regression model from R.
+
+```{r, include=FALSE}
+cleaned_gss$income_respondent <- factor(cleaned_gss$income_respondent)
+logit_model <- glm(own_rent ~ age + total_children +
+               income_respondent, data=cleaned_gss, family="binomial")
+```  
+
+After we get the fitted model, we want to measure how well our model fits. We use likelihood ratio test to measure whether the model with these 7 predictor variables fits significantly better than a model with just an intercept. In order to use likelihood ratio test, we establish a null model which is a null logistic model with just an intercept. And we claim the null and alternative hypotheses.
+  
+  $H_0: \beta_1 = \beta_2 = \beta_3 = \beta_4 = \beta_5 = \beta_6 = \beta_7 = 0$
+
+- The null model fits significantly better than the model with 7 predictor variables.
+ 
+$H_A: \beta_1 \neq \beta_2 \neq \beta_3 \neq \beta_4 \neq \beta_5 \neq \beta_6 \neq \beta_7 \neq 0$
+
+- The model with 7 predictor variables fits significantly better than the null model.
+
+The test statistic for this hypothesis test is the difference in deviance for the two model, one is the model with 7 predictors and another is the null model with just an intercept. We use lrtest() function from package lmtest to do the likelihood ratio test and then we get the p-value.
+
+
+Finally we establish the diagnostics for this logistic regression model.
+
+
+## Results
+
+**Logstic Regression Output from R**
+```{r,echo=FALSE}
+cleaned_gss$income_respondent <- factor(cleaned_gss$income_respondent)
+logit_model <- glm(own_rent ~ age + total_children +
+               as.factor(income_respondent), data=cleaned_gss, family="binomial")
+summary(logit_model)
+```                           
+                       
+The fitted model is:
+ $$logit(p) = log(p/(1-p))= -0.023 + 0.009*x_1 + 0.134*x_2 +0.186*x_3
+                           +0.870*x_4 + 1.185*x_5 + 1.336*x_6 + 1.797*x_7$$
+
+```{r,echo=FALSE}
+#with(logit_cleaned_data,null.deviance - deviance)
+#with(logit_cleaned_data, df.null - df.residual)
+#with(logit_cleaned_data, pchisq(null.deviance - deviance, df.null - df.residual, #lower.tail = FALSE)) #p-value
+#logLik(logit_cleaned_data)
+logit_null_model <- glm(own_rent ~ 1, data=cleaned_gss, family="binomial")
+lrtest(logit_model, logit_null_model)
+```                        
+
+From the Likelihood ratio test, we can find that the chi-square of 1244.5 with 7 degrees of freedom and an associated p-value less than 0.001 shows that we have strong evidence to reject $H_0$. Thus, the likelihood ratio test finds that our logistic regression model(with 7 predictors) as a whole fits significantly better than an null model(with only intercept). 
+
+
+Meanwhile, we draw three box plots. Figure 1, Figure 2 and Figure 3 show separate box plots of each of the three potential predictors, namely, Age of the predictor, Total children of the respondent and the Income of respondent for Household rented by respondent and those that are not. From Figure 1 and Figure 2, we can clearly find that the distribution of age of respondent for the household owned by respondent or a member of household has a larger mean than the distribution of age of respondent for the household rented by respondent. Similarly, the distribution of total children of respondent for the household owned by respondent or a member of household has a larger mean. As for Figure 3, we notice that the mean of the distribution of the income of respondent for the household owned and rented are same. However, the distribution of the income of respondent for the household owned by respondent or a member of the household has a longer tail than the the distribution of the income of respondent for the household rented.we use boxFigure 1 show separate box plots of three box plots to 
+
+```{r,echo=FALSE}
+par(mfrow=c(1,3))
+boxplot(cleaned_gss$age~cleaned_gss$own_rent, xlab="Owned Household? (0=No, 1=Yes)", ylab= "Age of respondent")
+title("Figure 1")
+boxplot(cleaned_gss$total_children~cleaned_gss$own_rent, xlab="Owned Household? (0=No, 1=Yes)", ylab= "Total Children of respondent")
+title("Figure 2")
+boxplot(as.numeric(cleaned_gss$income_respondent)~cleaned_gss$own_rent, xlab="Owned Household? (0=No, 1=Yes)", ylab= "Income of respondent")
+title("Figure 3")
+```
+```{r,echo=FALSE}
+par(mfrow = c(2,2))
+plot(logit_model)
+```
+
+
+## Discussion
+
+Our model is going to study the relationship between the outcome if respondents rent or owned houses and 3 variables i.e. age, number of total children and income of respondents. It is clear that we use the logistic model above to analyze the data. As the data that we selected in our study contains a part of categorical data, using the Logistic Regression can be a good choice and its predictor variables can be numerical or categorical. Since the categorical variable can use 'dummy' variable coding, we can perfectly analyze the data and make a conclusion about our thesis. According to our first model, we found that p-values of the variables that we selected to check the significance with the outcome are all extremely small, which shows their significance to the outcome that we want to discover.
+
+The fitted model is:
+ $$logit(p) = log(p/(1-p))= -0.023 + 0.009*x_1 + 0.134*x_2 +0.186*x_3
+                           +0.870*x_4 + 1.185*x_5 + 1.336*x_6 + 1.797*x_7$$
+                           
+   
+From this fitted model we can conclude that the logistic regression coefficients give the change in the log odds of the outcome (logit(p)) for a one unit increase in the predictor variable. 
+
+- When **age** of respondent changes by 1 unit, the corresponding average change in logit(p) is **0.009**.
+
+- When the **total children** of respondent changes by 1 unit, the corresponding average change in logit(p) is **0.134**.
+
+- The indicator variables for **income_respondent** shows that, if the income of respondent at **rank2** ($25,000 to $49,999), versus an income of rank1 (Less than $25,000), the average change in logit(p) is **0.186**. Similarly, if the income of respondent at **rank3** ($50,000 to $74,999), versus an income of rank1 (Less than $25,000), the average change in logit(p) is **0.870**, if the income of respondent at **rank4** ($75,000 to $99,999), versus an income of rank1 (Less than $25,000), the average change in logit(p) is **1.185**, if the income of respondent at **rank5** ($100,000 to $ 124,999), versus an income of rank1 (Less than $25,000), the average change in logit(p) is **1.336**, if the income of respondent at **rank6** ($125,000 and more), versus an income of rank1 (Less than $25,000), the average change in logit(p) is **1.797**
+
+According to the likelihood ratio test, we get the p-value less than 0.001 shows that we have strong evidence to reject $H_0$ that the null model fits significantly better than the model with 7 predictor variables. This we can conclude that our logistic regression model(with 7 predictors) as a whole fits significantly better than an null model(with only intercept).
+
+
+
+Here you will discuss conclusions drawn from the results and comment on how it relates to the original goal of the study (which was specified in the Introduction).
+
+
+
+# Weaknesses
+
+  Since the study uses questionnaire as a method to collect the data, people can choose not to respond to the questions of survey. As can been seen from data 'gss.csv', there are many "NA" represented as "answer not available". Therefore, one of the weaknesses of our data is that it is not precise enough and there exists the missing information for the data. 
+  
+  Additionally, another needs to be noticed is that we used respondent's individual income as one of the factors. However, respondent's family income might be different from their personal income and could result in different effects on owned or rent house. We cannot provide thoughts on which of these two kinds of income is the most eligible "income factor" for our analysis on the outcome. Whereas in fact, except the interaction with family income, there are many other factors we can consider for our study objectives such as gender.
+  
+  In this project, we expect to discover the relationship between the outcome of people whether rent or owned house and the factors i.e. age, number of total children and their income. Meanwhile, we need to summarize if they will have the significant impacts on the outcome. If the missing value or incomplete information exist, we are not able to conclude on the significance of these selected variables to the outcome. Therefore, our final results might appear the bias of the conclusion.
+
+# Next Steps
+
+To perfect our further study of the research, it is necessary to:
+
+- Add some interactions
+  Adding specific analysis on interactions between each variable can be considered in Next Steps. In our current study, we focus on how significant that each factor can influence the outcome 'own/rent'; however, we did not think about whether two factors in our study would have correlations with each other and finally we might get unexpected or mistaken results. 
+  
+- Add more variables such as sex, which can obtain differences between male and female.
+
+- Do some follow-up survey:
+  To verify our conclusion with the reality, we can set up another survey or questionnaire in order to ask participants "which factor do you think made you decide to own or rent a living place?". We can compare our analyzed results with respondent's autonomous answers to see whether our study on own/rent is rational or not.
+  
+  
+
+
+## References
+
+Hosmer, D. & Lemeshow, S. (2000). Applied Logistic Regression (Second Edition). New York: John Wiley & Sons, Inc.
+
+Logit Regression. UCLA: Statistical Consulting Group. https://stats.idre.ucla.edu/r/dae/logit-regression/
+
+Long, J. Scott (1997). Regression Models for Categorical and Limited Dependent Variables. Thousand Oaks, CA: Sage Publications.
+
+```{r}
+# Predict the probability (p) of response y = 1
+p <- predict(logit_model, type = "response")
+#p
+
+cleaned_gss <- mutate(cleaned_gss, logit = log(p/(1-p)))
+#cleaned_gss
+```
+
+
+
+
+
